@@ -18,8 +18,6 @@ public/js/ungit.js
 public/js/ungit.js.map
 public/js/devStyling.js
 public/images/
-public/index.html
-public/devStyling.html
 
 .ungitrc
 
@@ -28,8 +26,13 @@ report/
 
 /node_modules/
 
-/clicktestout/
+/clicktests/screenshots/
 /build
 /*.dll
 /nw.exe
 /nw.pak
+
+/components/**/*.css
+/components/**/*.bundle.js
+
+coverage

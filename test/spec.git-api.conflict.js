@@ -9,8 +9,9 @@ var common = require('./common.js');
 var wrapErrorHandler = common.wrapErrorHandler;
 
 var app = express();
+app.use(require('body-parser').json());
 
-restGit.registerApi(app, null, null, { dev: true });
+restGit.registerApi({ app: app, config: { dev: true, autoStashAndPop: true } });
 
 var testDir;
 
@@ -31,13 +32,13 @@ describe('git-api conflict rebase', function () {
 
 			async.series([
 				function(done) { common.post(req, '/testing/createfile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [testFile1] }, done); },
+				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [{ name: testFile1 }] }, done); },
 				function(done) { common.post(req, '/branches', { path: testDir, name: testBranch, startPoint: 'master' }, done); },
 				function(done) { common.post(req, '/testing/changefile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [testFile1] }, done); },
+				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [{ name: testFile1 }] }, done); },
 				function(done) { common.post(req, '/checkout', { path: testDir, name: testBranch }, done); },
 				function(done) { common.post(req, '/testing/changefile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [testFile1] }, done); }
+				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [{ name: testFile1 }] }, done); }
 			], done);
 		});
 	});
@@ -49,7 +50,7 @@ describe('git-api conflict rebase', function () {
 			.set('Accept', 'application/json')
 			.expect('Content-Type', /json/)
 			.expect(400)
-			.end(wrapErrorHandler(done, function(err, res) {
+			.end(wrapErrorHandler(function(err, res) {
 				expect(res.body.errorCode).to.be('merge-failed');
 				done();
 			}));
@@ -61,11 +62,15 @@ describe('git-api conflict rebase', function () {
 			expect(res.body.inRebase).to.be(true);
 			expect(Object.keys(res.body.files).length).to.be(1);
 			expect(res.body.files[testFile1]).to.eql({
+				displayName: testFile1,
 				isNew: false,
 				staged: false,
 				removed: false,
 				conflict: true,
-				type: 'text'
+				renamed: false,
+				type: 'text',
+				additions: '4',
+				deletions: '0'
 			});
 			done();
 		});
@@ -98,10 +103,10 @@ describe('git-api conflict checkout', function () {
 			testDir = dir;
 			async.series([
 				function(done) { common.post(req, '/testing/createfile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: 'a', files: [testFile1] }, done); },
+				function(done) { common.post(req, '/commit', { path: testDir, message: 'a', files: [{ name: testFile1 }] }, done); },
 				function(done) { common.post(req, '/branches', { path: testDir, name: testBranch, startPoint: 'master' }, done); },
 				function(done) { common.post(req, '/testing/changefile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: 'b', files: [testFile1] }, done); },
+				function(done) { common.post(req, '/commit', { path: testDir, message: 'b', files: [{ name: testFile1 }] }, done); },
 			], done);
 		});
 	});
@@ -117,7 +122,7 @@ describe('git-api conflict checkout', function () {
 			.set('Accept', 'application/json')
 			.expect('Content-Type', /json/)
 			.expect(400)
-			.end(wrapErrorHandler(done, function(err, res) {
+			.end(wrapErrorHandler(function(err, res) {
 				expect(res.body.errorCode).to.be('merge-failed');
 				done();
 			}));
@@ -129,11 +134,15 @@ describe('git-api conflict checkout', function () {
 			expect(res.body.inRebase).to.be(false);
 			expect(Object.keys(res.body.files).length).to.be(1);
 			expect(res.body.files[testFile1]).to.eql({
+				displayName: testFile1,
 				isNew: false,
 				staged: false,
 				removed: false,
 				conflict: true,
-				type: 'text'
+				renamed: false,
+				type: 'text',
+				additions: '4',
+				deletions: '0'
 			});
 			done();
 		});
@@ -155,13 +164,13 @@ describe('git-api conflict merge', function () {
 			testDir = dir;
 			async.series([
 				function(done) { common.post(req, '/testing/createfile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: 'a', files: [testFile1] }, done); },
+				function(done) { common.post(req, '/commit', { path: testDir, message: 'a', files: [{ name: testFile1 }] }, done); },
 				function(done) { common.post(req, '/branches', { path: testDir, name: testBranch, startPoint: 'master' }, done); },
 				function(done) { common.post(req, '/testing/changefile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: 'b', files: [testFile1] }, done); },
+				function(done) { common.post(req, '/commit', { path: testDir, message: 'b', files: [{ name: testFile1 }] }, done); },
 				function(done) { common.post(req, '/checkout', { path: testDir, name: testBranch }, done); },
 				function(done) { common.post(req, '/testing/changefile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: 'c', files: [testFile1] }, done); },
+				function(done) { common.post(req, '/commit', { path: testDir, message: 'c', files: [{ name: testFile1 }] }, done); },
 			], done);
 		});
 	});
@@ -173,7 +182,7 @@ describe('git-api conflict merge', function () {
 			.set('Accept', 'application/json')
 			.expect('Content-Type', /json/)
 			.expect(400)
-			.end(wrapErrorHandler(done, function(err, res) {
+			.end(wrapErrorHandler(function(err, res) {
 				expect(res.body.errorCode).to.be('merge-failed');
 				done();
 			}));
@@ -186,11 +195,15 @@ describe('git-api conflict merge', function () {
 			expect(res.body.commitMessage).to.be.ok();
 			expect(Object.keys(res.body.files).length).to.be(1);
 			expect(res.body.files[testFile1]).to.eql({
+				displayName: testFile1,
 				isNew: false,
 				staged: false,
 				removed: false,
 				conflict: true,
-				type: 'text'
+				renamed: false,
+				type: 'text',
+				additions: '4',
+				deletions: '0'
 			});
 			done();
 		});
@@ -226,13 +239,13 @@ describe('git-api conflict solve by deleting', function () {
 
 			async.series([
 				function(done) { common.post(req, '/testing/createfile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [testFile1] }, done); },
+				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [{ name: testFile1 }] }, done); },
 				function(done) { common.post(req, '/branches', { path: testDir, name: testBranch, startPoint: 'master' }, done); },
 				function(done) { common.post(req, '/testing/changefile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [testFile1] }, done); },
+				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [{ name: testFile1 }] }, done); },
 				function(done) { common.post(req, '/checkout', { path: testDir, name: testBranch }, done); },
 				function(done) { common.post(req, '/testing/changefile', { file: path.join(testDir, testFile1) }, done); },
-				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [testFile1] }, done); }
+				function(done) { common.post(req, '/commit', { path: testDir, message: commitMessage, files: [{ name: testFile1 }] }, done); }
 			], done);
 		});
 	});
@@ -244,7 +257,7 @@ describe('git-api conflict solve by deleting', function () {
 			.set('Accept', 'application/json')
 			.expect('Content-Type', /json/)
 			.expect(400)
-			.end(wrapErrorHandler(done, function(err, res) {
+			.end(wrapErrorHandler(function(err, res) {
 				expect(res.body.errorCode).to.be('merge-failed');
 				done();
 			}));
@@ -256,11 +269,15 @@ describe('git-api conflict solve by deleting', function () {
 			expect(res.body.inRebase).to.be(true);
 			expect(Object.keys(res.body.files).length).to.be(1);
 			expect(res.body.files[testFile1]).to.eql({
+				displayName: testFile1,
 				isNew: false,
 				staged: false,
 				removed: false,
 				conflict: true,
-				type: 'text'
+				renamed: false,
+				type: 'text',
+				additions: '4',
+				deletions: '0'
 			});
 			done();
 		});
@@ -278,4 +295,8 @@ describe('git-api conflict solve by deleting', function () {
 		common.post(req, '/rebase/continue', { path: testDir }, done);
 	});
 
-})
+	after(function(done) {
+		common.post(req, '/testing/cleanup', undefined, done);
+	});
+
+});

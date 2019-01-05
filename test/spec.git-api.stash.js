@@ -9,8 +9,9 @@ var common = require('./common.js');
 var wrapErrorHandler = common.wrapErrorHandler;
 
 var app = express();
+app.use(require('body-parser').json());
 
-restGit.registerApi(app, null, null, { dev: true });
+restGit.registerApi({ app: app, config: { dev: true } });
 
 var testDir;
 
@@ -50,5 +51,9 @@ describe('git-api conflict rebase', function () {
 	it('should be possible to drop stash', function(done) {
 		common.delete(req, '/stashes/0', { path: testDir }, done);
 	});
+	
+	after(function(done) {
+		common.post(req, '/testing/cleanup', undefined, done);
+	});
 
-})
+});

@@ -10,8 +10,9 @@ var common = require('./common.js');
 var wrapErrorHandler = common.wrapErrorHandler;
 
 var app = express();
+app.use(require('body-parser').json());
 
-restGit.registerApi(app, null, null, { dev: true });
+restGit.registerApi({ app: app, config: { dev: true } });
 
 var req = request(app);
 
@@ -37,7 +38,7 @@ describe('git-api submodule', function () {
 	var submodulePath = 'sub';
 
 	it('submodule add should work', function(done) {
-		common.post(req, '/submodules', { path: testDirMain, submodulePath: submodulePath, submoduleUrl: testDirSecondary }, done);
+		common.post(req, '/submodules/add', { path: testDirMain, submodulePath: submodulePath, submoduleUrl: testDirSecondary }, done);
 	});
 
 	it('submodule should show up in status', function(done) {
@@ -45,25 +46,33 @@ describe('git-api submodule', function () {
 			if (err) return done(err);
 			expect(Object.keys(res.body.files).length).to.be(2);
 			expect(res.body.files[submodulePath]).to.eql({
+				displayName: submodulePath,
 				isNew: true,
 				staged: true,
 				removed: false,
 				conflict: false,
-				type: 'text'
+				renamed: false,
+				type: 'text',
+				additions: '1',
+				deletions: '0'
 			});
 			expect(res.body.files['.gitmodules']).to.eql({
+				displayName: '.gitmodules',
 				isNew: true,
 				staged: true,
 				removed: false,
 				conflict: false,
-				type: 'text'
+				renamed: false,
+				type: 'text',
+				additions: '3',
+				deletions: '0'
 			});
 			done();
 		});
 	});
 
 	it('commit should succeed', function(done) {
-		common.post(req, '/commit', { path: testDirMain, message: 'Add submodule', files: [submodulePath, '.gitmodules'] }, done);
+		common.post(req, '/commit', { path: testDirMain, message: 'Add submodule', files: [{ name: submodulePath }, { name: '.gitmodules' }] }, done);
 	});
 
 	it('status should be empty after commit', function(done) {
@@ -85,11 +94,15 @@ describe('git-api submodule', function () {
 			if (err) return done(err);
 			expect(Object.keys(res.body.files).length).to.be(1);
 			expect(res.body.files[submodulePath]).to.eql({
+				displayName: submodulePath,
 				isNew: false,
 				staged: false,
 				removed: false,
 				conflict: false,
-				type: 'text'
+				renamed: false,
+				type: 'text',
+				additions: '0',
+				deletions: '0'
 			});
 			done();
 		});
@@ -98,10 +111,8 @@ describe('git-api submodule', function () {
 	it('diff on submodule should work', function(done) {
 		common.get(req, '/diff', { path: testDirMain, file: submodulePath }, function(err, res) {
 			if (err) return done(err);
-			expect(res.body).to.be.an('array');
-			expect(res.body.length).to.be.greaterThan(0);
-			expect(res.body[0].lines).to.be.an('array');
-			expect(res.body[0].lines.length).to.be.greaterThan(0);
+			expect(res.body.indexOf('-Subproject commit')).to.be.above(-1);
+			expect(res.body.indexOf('+Subproject commit')).to.be.above(-1);
 			done();
 		});
 	});

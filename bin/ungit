@@ -5,7 +5,6 @@ var config = require('../source/config');
 var open = require('open');
 var path = require('path');
 var child_process = require('child_process');
-var semver = require('semver');
 var async = require('async');
 
 var BugTracker = require('../source/bugtracker');
@@ -36,7 +35,7 @@ child.on('exit', function (res) {
 });
 
 function launch(callback) {
-  var currentUrl = config.urlBase + ':' + config.port;
+  var currentUrl = config.urlBase + ':' + config.port + config.rootPath;
   if (config.forcedLaunchPath === undefined) currentUrl += '/#/repository?path=' + encodeURIComponent(process.cwd());
   else if (config.forcedLaunchPath !== null && config.forcedLaunchPath !== '') currentUrl += '/#/repository?path=' + encodeURIComponent(config.forcedLaunchPath);
   console.log('Browse to ' + currentUrl);
@@ -70,24 +69,6 @@ function startupListener(data) {
 
 child.on('stdout', startupListener);
 
-function verifyGitVersion(callback) {
-  child_process.exec('git --version', function(err, stdout, stderr) {
-
-    if (err) {
-      callback('Can\'t run "git --version". Is git installed and available in your path?');
-    } else {
-      var version = /.*(\d+[.]\d+[.]\d+).*/.exec(stdout)[1];
-      var requiredVersion = '>=1.8.x';
-      if (!semver.satisfies(version, requiredVersion)) {
-        callback('Ungit requires git version ' + requiredVersion + ', you are currently running ' + version);
-      } else {
-        callback();
-      }
-    }
-
-  });
-}
-
 function checkIfUngitIsRunning(callback) {
   // Fastest way to find out if a port is used or not/i.e. if ungit is running
   var net = require('net');
@@ -112,9 +93,6 @@ checkIfUngitIsRunning(function(err1, ungitRunning) {
     });
   }
   else {
-    verifyGitVersion(function(err) {
-      if (err) console.log(err);
-      else child.start();
-    });
+    child.start();
   }
 });

@@ -16,14 +16,15 @@ npm-debug.log
 node_modules/
 
 .ungitrc
+.travis.yml
 Gruntfile.js
 
 assets/
 test/
 report/
 public/source/
-public/vendor/
-public/less/
+public/vendor/css/
+public/vendor/js/
 public/templates/
 public/devStyling.html
 public/js/devStyling.js

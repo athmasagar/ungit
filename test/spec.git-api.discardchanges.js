@@ -9,8 +9,9 @@ var restGit = require('../source/git-api');
 var common = require('./common.js');
 
 var app = express();
+app.use(require('body-parser').json());
 
-restGit.registerApi(app, null, null, { dev: true });
+restGit.registerApi({ app: app, config: { dev: true } });
 
 var req = request(app);
 
@@ -41,7 +42,7 @@ describe('git-api discardchanges', function() {
       var testFile1 = 'test.txt';
       async.series([
         function(done) { common.post(req, '/testing/createfile', { file: path.join(dir, testFile1) }, done); },
-        function(done) { common.post(req, '/commit', { path: dir, message: 'lol', files: [testFile1] }, done); },
+        function(done) { common.post(req, '/commit', { path: dir, message: 'lol', files: [{ name: testFile1 }] }, done); },
         function(done) { common.post(req, '/testing/changefile', { file: path.join(dir, testFile1) }, done); },
         function(done) { common.post(req, '/discardchanges', { path: dir, file: testFile1 }, done); },
         function(done) {
@@ -61,7 +62,7 @@ describe('git-api discardchanges', function() {
       var testFile1 = 'test.txt';
       async.series([
         function(done) { common.post(req, '/testing/createfile', { file: path.join(dir, testFile1) }, done); },
-        function(done) { common.post(req, '/commit', { path: dir, message: 'lol', files: [testFile1] }, done); },
+        function(done) { common.post(req, '/commit', { path: dir, message: 'lol', files: [{ name: testFile1 }] }, done); },
         function(done) { common.post(req, '/testing/removefile', { file: path.join(dir, testFile1) }, done); },
         function(done) { common.post(req, '/discardchanges', { path: dir, file: testFile1 }, done); },
         function(done) {
@@ -81,7 +82,7 @@ describe('git-api discardchanges', function() {
       var testFile1 = 'test.txt';
       async.series([
         function(done) { common.post(req, '/testing/createfile', { file: path.join(dir, testFile1) }, done); },
-        function(done) { common.post(req, '/testing/git', { repo: dir, command: 'add ' + testFile1 }, done); },
+        function(done) { common.post(req, '/testing/git', { repo: dir, command: ['add', testFile1] }, done); },
         function(done) { common.post(req, '/discardchanges', { path: dir, file: testFile1 }, done); },
         function(done) {
           common.get(req, '/status', { path: dir }, function(err, res) {
@@ -100,7 +101,7 @@ describe('git-api discardchanges', function() {
       var testFile1 = 'test.txt';
       async.series([
         function(done) { common.post(req, '/testing/createfile', { file: path.join(dir, testFile1) }, done); },
-        function(done) { common.post(req, '/testing/git', { repo: dir, command: 'add ' + testFile1 }, done); },
+        function(done) { common.post(req, '/testing/git', { repo: dir, command: ['add', testFile1] }, done); },
         function(done) { common.post(req, '/testing/removefile', { file: path.join(dir, testFile1) }, done); },
         function(done) { common.post(req, '/discardchanges', { path: dir, file: testFile1 }, done); },
         function(done) {
@@ -121,9 +122,9 @@ describe('git-api discardchanges', function() {
       var testFile1 = 'test.txt';
       async.series([
         function(done) { common.post(req, '/testing/createfile', { file: path.join(dir, testFile1) }, done); },
-        function(done) { common.post(req, '/commit', { path: dir, message: 'lol', files: [testFile1] }, done); },
+        function(done) { common.post(req, '/commit', { path: dir, message: 'lol', files: [{ name: testFile1 }] }, done); },
         function(done) { common.post(req, '/testing/changefile', { file: path.join(dir, testFile1) }, done); },
-        function(done) { common.post(req, '/testing/git', { repo: dir, command: 'add ' + testFile1 }, done); },
+        function(done) { common.post(req, '/testing/git', { repo: dir, command: ['add', testFile1] }, done); },
         function(done) { common.post(req, '/testing/removefile', { file: path.join(dir, testFile1) }, done); },
         function(done) { common.post(req, '/discardchanges', { path: dir, file: testFile1 }, done); },
         function(done) { common.get(req, '/status', { path: dir }, function(err, res) {
@@ -134,4 +135,9 @@ describe('git-api discardchanges', function() {
       ], done);
     });
   });*/
-})
+
+  after(function(done) {
+    common.post(req, '/testing/cleanup', undefined, done);
+  });
+
+});

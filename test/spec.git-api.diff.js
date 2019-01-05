@@ -10,8 +10,9 @@ var common = require('./common.js');
 var wrapErrorHandler = common.wrapErrorHandler;
 
 var app = express();
+app.use(require('body-parser').json());
 
-restGit.registerApi(app, null, null, { dev: true });
+restGit.registerApi({ app: app, config: { dev: true } });
 
 var req = request(app);
 
@@ -54,14 +55,8 @@ describe('git-api diff', function () {
 	it('diff on created file should work', function(done) {
 		common.get(req, '/diff', { path: testDir, file: testFile }, function(err, res) {
 			if (err) return done(err);
-			expect(res.body).to.be.an('array');
-			expect(res.body.length).to.be(1);
-			expect(res.body[0].lines).to.be.an('array');
-			expect(res.body[0].lines.length).to.be(content.length);
-			for(var i = 0; i < res.body[0].lines.length; i++) {
-				var contentLine = content[i];
-				var diffLine = res.body[0].lines[i];
-				expect(diffLine).to.eql([null, i, '+' + contentLine]);
+			for(var i = 0; i < content.length; i++) {
+				expect(res.body.indexOf(content[i])).to.be.above(-1);
 			}
 			done();
 		});
@@ -69,18 +64,18 @@ describe('git-api diff', function () {
 
 	it('diff on image file should work', function(done) {
 		common.getPng(req, '/diff/image', { path: testDir, filename: testImage, version: 'current' }, function(err, res) {
-			
+
 			if (err) return done(err);
-			expect(res.text).to.be('png');
+			expect(res.body.toString()).to.be('png');
 			done();
 		});
 	});
 
 	it('should be possible to commit a file', function(done) {
-		common.post(req, '/commit', { path: testDir, message: "Init", files: [testFile] }, done);
+		common.post(req, '/commit', { path: testDir, message: "Init", files: [{ name: testFile }] }, done);
 	});
 	it('should be possible to commit an image file', function(done) {
-		common.post(req, '/commit', { path: testDir, message: "Init", files: [testImage] }, done);
+		common.post(req, '/commit', { path: testDir, message: "Init", files: [{ name: testImage }] }, done);
 	});
 
 	it('diff on commited file should work', function(done) {
@@ -94,9 +89,9 @@ describe('git-api diff', function () {
 
 	it('diff on commited image file should work', function(done) {
 		common.getPng(req, '/diff/image', { path: testDir, filename: testImage, version: 'current' }, function(err, res) {
-			
+
 			if (err) return done(err);
-			expect(res.text).to.be('png');
+			expect(res.body.toString()).to.be('png');
 			done();
 		});
 	});
@@ -113,18 +108,8 @@ describe('git-api diff', function () {
 	it('diff on modified file should work', function(done) {
 		common.get(req, '/diff', { path: testDir, file: testFile }, function(err, res) {
 			if (err) return done(err);
-			expect(res.body).to.be.an('array');
-			expect(res.body.length).to.be(1);
-			expect(res.body[0].lines).to.be.an('array');
-			expect(res.body[0].lines).to.eql([
-				[ null, null, '@@ -1,5 +1,6 @@' ],
-				[ 1, 1, ' A' ],
-				[ 2, 2, ' few' ],
-				[ null, 3, '+more' ],
-				[ 3, 4, ' lines' ],
-				[ 4, 5, ' of' ],
-				[ 5, 6, ' content' ]
-			]);
+			expect(res.body.indexOf('diff --git a/afile.txt b/afile.txt')).to.be.above(-1);
+			expect(res.body.indexOf('+more')).to.be.above(-1);
 			done();
 		});
 	});
@@ -132,21 +117,21 @@ describe('git-api diff', function () {
 	it('getting current image file should work', function(done) {
 		common.getPng(req, '/diff/image', { path: testDir, filename: testImage, version: 'current' }, function(err, res) {
 			if (err) return done(err);
-			expect(res.text).to.be('png ~~');
-			done();	
+			expect(res.body.toString()).to.be('png ~~');
+			done();
 		});
 	});
 
 	it('getting previous image file should work', function(done) {
-		common.getPng(req, '/diff/image', { path: testDir, filename: testImage, version: 'previous' }, function(err, res) {
+		common.getPng(req, '/diff/image', { path: testDir, filename: testImage, version: 'HEAD' }, function(err, res) {
 			if (err) return done(err);
-			done();	
-			expect(res.text).to.be('png');
+			expect(res.body.toString()).to.be('png');
+			done();
 		});
 	});
 
 	it('should be possible to commit a file', function(done) {
-		common.post(req, '/commit', { path: testDir, message: "Init", files: [testFile] }, done);
+		common.post(req, '/commit', { path: testDir, message: "Init", files: [{ name: testFile }] }, done);
 	});
 
 	it('removing a test file should work', function(done) {
@@ -154,7 +139,7 @@ describe('git-api diff', function () {
 	});
 
 	it('should be possible to commit an image file', function(done) {
-		common.post(req, '/commit', { path: testDir, message: "Init", files: [testImage] }, done);
+		common.post(req, '/commit', { path: testDir, message: "Init", files: [{ name: testImage }] }, done);
 	});
 	it('removing a test image file should work', function(done) {
 		common.post(req, '/testing/removefile', { file: path.join(testDir, testImage) }, done);
@@ -163,19 +148,17 @@ describe('git-api diff', function () {
 	it('diff on removed file should work', function(done) {
 		common.get(req, '/diff', { path: testDir, file: testFile }, function(err, res) {
 			if (err) return done(err);
-			expect(res.body).to.be.an('array');
-			expect(res.body.length).to.be.greaterThan(0);
-			expect(res.body[0].lines).to.be.an('array');
-			expect(res.body[0].lines.length).to.be.greaterThan(0);
+			expect(res.body.indexOf('deleted file')).to.be.above(-1);
+			expect(res.body.indexOf("@@ -1,6 +0,0 @@")).to.be.above(-1);
 			done();
 		});
 	});
 
 	it('getting previous image file should work', function(done) {
-		common.getPng(req, '/diff/image', { path: testDir, filename: testImage, version: 'previous' }, function(err, res) {
+		common.getPng(req, '/diff/image', { path: testDir, filename: testImage, version: 'HEAD' }, function(err, res) {
 			if (err) return done(err);
-			done();	
-			expect(res.text).to.be('png ~~');
+			expect(res.body.toString()).to.be('png ~~');
+			done();
 		});
 	});
 
